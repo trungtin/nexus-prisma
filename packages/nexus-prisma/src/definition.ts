@@ -9,10 +9,10 @@ import {
   PrismaOutputOptsMap,
   PrismaSchemaConfig,
 } from './types'
-import { isObjectType, GraphQLSchema } from 'graphql'
+import { isObjectType, GraphQLSchema, GraphQLNamedType } from 'graphql'
 import { getTypeName, isListOrRequired, findObjectTypeField } from './graphql'
 import { generateDefaultResolver } from './resolver'
-import { getFields, whitelistArgs } from './utils'
+import { getFields, whitelistArgs, isConnectionTypeName } from './utils'
 
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
 
@@ -62,12 +62,25 @@ export function prismaObjectType<TypeName extends string>(
             )
             const { list, ...rest } = prismaType[fieldType.name]
             const args = whitelistArgs(rest.args, field.args)
+            const fieldTypeName = getTypeName(fieldType.type)
             t.field(fieldName, {
-              type: getTypeName(fieldType.type),
+              type: fieldTypeName,
               list: list ? true : undefined,
               args,
               ...rest,
             })
+
+            if (isConnectionTypeName(fieldTypeName)) {
+              const [normalTypeName] = fieldTypeName.split('Connection')
+              const edgeTypeName = `${normalTypeName}Edge`
+
+              builder.addType(prismaSchema.getType(
+                fieldTypeName,
+              ) as GraphQLNamedType)
+              builder.addType(prismaSchema.getType(
+                edgeTypeName,
+              ) as GraphQLNamedType)
+            }
           })
         }
         definition(prismaBlock)
