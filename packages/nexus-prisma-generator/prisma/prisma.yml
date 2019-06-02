@@ -1,0 +1,5 @@
+datamodel: datamodel.prisma
+
+generate:
+  - typescript-client:
+    output: ./client
